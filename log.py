@@ -12,7 +12,7 @@ colors = {'normal': (Fore.RESET,),
 
 def cool_print_decoration(message, style, separator='-'):
     cool_print('\n' + separator * 4 + '\n')
-    cool_print(message, style)
+    cool_print(message, style = style)
     cool_print('\n' + separator * 4)
 
 def cool_print(*args, style='normal', **kwargs):
