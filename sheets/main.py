@@ -6,21 +6,24 @@ from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
-
-try:
+from googleapiclient.errors import HttpError
+""" try:
     import argparse
     flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
 except ImportError:
     flags = None
+"""
+import argparse
 
-from config import CLIENT_SECRET_FILE, SCOPES, APPLICATION_NAME
-from params import GET_NOTES_API, SPREADSHEET_ID, EVALUATION_NAME, SHEET_ID
+from .config import CLIENT_SECRET_FILE, SCOPES, APPLICATION_NAME
+from .params import GET_NOTES_API, SPREADSHEET_ID, EVALUATION_NAME, SHEET_ID
 from itertools import zip_longest
 import time
 import json
 from log import cool_print_decoration
+import sys
 
-EXPORT_PATH = 'students_and_qr.txt'
+STUDENTS_FILE_NAME = 'students_and_qr.txt'
 
 def get_credentials():
     """
@@ -47,7 +50,7 @@ def get_credentials():
             credentials = tools.run_flow(flow, store, flags)
         else:  # Needed only for compatibility with Python 2.6
             credentials = tools.run(flow, store)
-        cool_print_decoration('Storing credentials to ' + credential_path, 'info')
+        cool_print_decoration('Storing credentials to ' + credential_path, style = 'info')
     return credentials
 
 def create_service(http, _type):
@@ -68,8 +71,13 @@ def create_service(http, _type):
             :param extract: Boolean that indicates top level extraction
             :return: array of elements resulting from api call
             """
-            result = service.get(spreadsheetId=SPREADSHEET_ID, range=range).execute()['values']
-            return result[0] if extract else result
+            try:
+                result = service.get(spreadsheetId=SPREADSHEET_ID, range=range).execute()['values']
+            except HttpError as e:
+                cool_print_decoration("Request limit reached. Try again later (>100s)\n{}".format(e), style = 'alert')
+                sys.exit(0)
+            else:
+                return result[0] if extract else result
 
         return __service_sheets
     else:
@@ -145,8 +153,13 @@ def column_number_to_letter(number):
 
 def sheet_id(credentials):
     service = discovery.build('sheets', 'v4', credentials=credentials)
-    request = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-    return request['sheets'][0]['properties']['sheetId']
+    try:
+        request = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    except HttpError as e:
+        cool_print_decoration("Request limit reached. Try again later (>100s)\n{}".format(e), style = 'alert')
+        sys.exit(0)
+    else:
+        return request['sheets'][0]['properties']['sheetId']
 
 def get_row_number(column_row_range):
     index = 0
@@ -155,42 +168,70 @@ def get_row_number(column_row_range):
         index += 1
     return column_row_range[index:]
 
+def add_data(students_dict, data_array):
+    student_name = data_array[0]
+    student_qr_array = data_array[1:]
+    for qr_number in student_qr_array:
+        students_dict[qr_number] = student_name
+    return students_dict
+
 def main(path, evaluation_name, *args, **kwargs):
     students_qr = {}
 
-    cool_print_decoration('Starting connection with API.', 'info')
+    cool_print_decoration('Starting connection with API.', style = 'info')
     # initialize conections
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     service_sheets = create_service(http, "SHEETS")
     SHEET_ID = sheet_id(credentials)
-    cool_print_decoration('Connection with API successful.', 'result')
+    cool_print_decoration('Connection with API successful.', style = 'result')
 
     # initialize data
     header_range = get_headers(service_sheets)
     header = service_sheets(header_range)
     range_generator = range_row_modifier(header_range)
 
-    cool_print_decoration('Starting data recolection.', 'info')
+    new_path = os.path.abspath(path)
+    if os.path.exists("{}/{}/{}".format(new_path, evaluation_name, STUDENTS_FILE_NAME)):
+        cool_print_decoration('Information already stored in {}/{}/{}\n\nTo update data, delete previous file.'.format(new_path, evaluation_name, STUDENTS_FILE_NAME), style = 'info')
+        return 1
+
+    cool_print_decoration('Starting data recolection.', style = 'info')
     # start
     while True:
-        cool_print_decoration()
         nxt = next(range_generator)
         row = get_row_number(nxt)
         if (int(row) % 90 == 0):
             # API limit requests: 100 requests per 100s per user
-            cool_print_decoration('Too many requests. Going to sleep...', 'info')
+            cool_print_decoration('Too many requests. Going to sleep...', style = 'info')
             time.sleep(100)
-            cool_print_decoration('Ready to work again!', 'result')
+            cool_print_decoration('Ready to work again!', style = 'result')
         try:
             data = service_sheets(nxt)
-            students_qr[data[0]] = data[1:]
+            if len(data) > 1:
+                student_name = data[0]
+                student_qr_array = data[1:]
+                for qr_number in student_qr_array:
+                    students_qr[qr_number] = student_name
         except KeyError:
+            cool_print_decoration('Done with API.', style = 'result')
             # print('I\'m out of range')
             break
-    if not os.path.exists("{}/{}/students_and_qr.txt".format(path, evaluation_name)):
-        cool_print_decoration('Done with API. Storing information in {}/{}'.format(path, evaluation_name))
-        with open("{}/{}/students_and_qr.txt".format(path, evaluation_name), 'w') as file:
-            json.dump(students_qr, file, indent=4)
+
+
+    # Create directory
+    if not os.path.exists("{}/{}".format(new_path, evaluation_name)):
+        cool_print_decoration('Creating directory {} in: {} path.'.format(evaluation_name, new_path), style = 'info')
+        os.mkdir("{}/{}".format(new_path, evaluation_name))
+        print("\n{}: {}".format(new_path + evaluation_name, os.path.exists(new_path + evaluation_name)))
+
+    if not os.path.exists("{}/{}/{}".format(new_path, evaluation_name, STUDENTS_FILE_NAME)):
+        cool_print_decoration('Storing information in {}/{}/{}'.format(new_path, evaluation_name, STUDENTS_FILE_NAME), style = 'info')
+        try:
+            with open("{}/{}/{}".format(path, evaluation_name, STUDENTS_FILE_NAME), 'w') as file:
+                json.dump(students_qr, file, indent=4)
+            cool_print_decoration('Information stored!', style = 'result')
+        except FileNotFoundError as e:
+            cool_print_decoration('FileNotFoundError', style = 'alert')
 if __name__ == '__main__':
     main('./', 'i1')
