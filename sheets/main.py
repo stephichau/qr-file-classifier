@@ -17,6 +17,10 @@ from config import CLIENT_SECRET_FILE, SCOPES, APPLICATION_NAME
 from params import GET_NOTES_API, SPREADSHEET_ID, EVALUATION_NAME, SHEET_ID
 from itertools import zip_longest
 import time
+import json
+from log import cool_print_decoration
+
+EXPORT_PATH = 'students_and_qr.txt'
 
 def get_credentials():
     """
@@ -43,7 +47,7 @@ def get_credentials():
             credentials = tools.run_flow(flow, store, flags)
         else:  # Needed only for compatibility with Python 2.6
             credentials = tools.run(flow, store)
-        print('Storing credentials to ' + credential_path)
+        cool_print_decoration('Storing credentials to ' + credential_path, 'info')
     return credentials
 
 def create_service(http, _type):
@@ -139,61 +143,54 @@ def column_number_to_letter(number):
         string = chr(65 + remainder) + string
     return string
 
-def add_new_column(http, header_range):
-    start_index = column_letter_to_number(header_range.split(':')[1][0])
-    next_column_index = start_index + 1
-    discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?version=v4')
-    service = discovery.build('sheets', 'v4', http=http, discoveryServiceUrl=discoveryUrl).spreadsheets().values()
-    batch_update_values_request_body = {
-        "requests": [ {
-            "insertDimension": {
-                "range": {
-                    "sheetId": SHEET_ID,
-                    "dimensions": "COLUMNS",
-                    "startIndex": start_index - 1,
-                    "endIndex": next_column_index
-                },
-                "inheritFromBefore": False
-                }
-            }
-        ]
-    }
-    # request = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-    # result = service.post(spreadsheetId=SPREADSHEET_ID, body=batch_update_values_request_body).execute()['values']
-    # print(next_column_index)
-
 def sheet_id(credentials):
     service = discovery.build('sheets', 'v4', credentials=credentials)
     request = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
     return request['sheets'][0]['properties']['sheetId']
 
-def main():
+def get_row_number(column_row_range):
+    index = 0
+    column_row_range = column_row_range.split(':')[0]
+    while column_row_range[index:][0].isalpha():
+        index += 1
+    return column_row_range[index:]
+
+def main(path, evaluation_name, *args, **kwargs):
+    students_qr = {}
+
+    cool_print_decoration('Starting connection with API.', 'info')
     # initialize conections
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     service_sheets = create_service(http, "SHEETS")
     SHEET_ID = sheet_id(credentials)
+    cool_print_decoration('Connection with API successful.', 'result')
+
     # initialize data
     header_range = get_headers(service_sheets)
     header = service_sheets(header_range)
     range_generator = range_row_modifier(header_range)
-    next(range_generator)
+
+    cool_print_decoration('Starting data recolection.', 'info')
     # start
     while True:
+        cool_print_decoration()
         nxt = next(range_generator)
-        if (int(nxt[-1]) % 5 == 0):
-            # add_new_column(http, header_range)
-            break
-        #    time.sleep(80)
+        row = get_row_number(nxt)
+        if (int(row) % 90 == 0):
+            # API limit requests: 100 requests per 100s per user
+            cool_print_decoration('Too many requests. Going to sleep...', 'info')
+            time.sleep(100)
+            cool_print_decoration('Ready to work again!', 'result')
         try:
-            n = column_letter_to_number(nxt.split(':')[1][0])
-            print(n)
-            print(column_number_to_letter(n))
-            # print(service_sheets(nxt))
+            data = service_sheets(nxt)
+            students_qr[data[0]] = data[1:]
         except KeyError:
-            print('I\'m out of range')
+            # print('I\'m out of range')
             break
-
-    # while service_sheets(next):
+    if not os.path.exists("{}/{}/students_and_qr.txt".format(path, evaluation_name)):
+        cool_print_decoration('Done with API. Storing information in {}/{}'.format(path, evaluation_name))
+        with open("{}/{}/students_and_qr.txt".format(path, evaluation_name), 'w') as file:
+            json.dump(students_qr, file, indent=4)
 if __name__ == '__main__':
-    main()
+    main('./', 'i1')
