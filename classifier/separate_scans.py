@@ -4,6 +4,7 @@ import os
 from wand.image import Image
 from wand.color import Color
 from cool_prints import cool_print_decoration, cool_print
+from decode_data import save_data, find_and_decode_qr_from_image
 
 # Based from: https://stackoverflow.com/questions/27327513/create-pdf-from-a-list-of-images
 def makePdf(imageDir, SaveToDir):
@@ -26,54 +27,55 @@ def makePdf(imageDir, SaveToDir):
     except Exception as e:
         print(e)
 
-
 def separate_pdf_pages(original_scans_path, result_separation_scans, evaluation_name, *args):
-    path = "{}/{}".format(result_separation_scans, evaluation_name)
-    if not os.path.exists(path):
-        cool_print_decoration('Making {} directory in path: {}'.format(evaluation_name, result_separation_scans), style = 'info')
-        os.mkdir(path)
-
+    # Get abs path of directories
     original_scans_path = '{}/{}'.format(os.path.abspath(original_scans_path), evaluation_name)
+    if not os.path.exists('{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name)):
+        cool_print_decoration('Creating directory in path {}'.format('{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name)), style = 'info')
+        os.mkdir('{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name))
+    result_separation_scans = '{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name)
+
     for question_file in os.listdir(original_scans_path):
-        if not os.path.exists("{}/{}/".format(path, question_file.split('.')[0])):
-            cool_print_decoration('Making {} directory in path: {}'.format(question_file.split('.')[0], result_separation_scans), style = 'info')
-            os.mkdir("{}/{}".format(path, question_file.split('.')[0]))
-        
-        p = '{}/{}'.format(original_scans_path, question_file)
-        input_pdf = PdfFileReader(open(p, "rb"))
+        # Get abs path of files and question_directories
+        file_path = '{}/{}'.format(original_scans_path, question_file)
+        filename = question_file.split('.')[0]
+        if not os.path.exists('{}/{}'.format(result_separation_scans, filename)):
+            os.mkdir('{}/{}'.format(result_separation_scans, filename))
+        result_question_path = '{}/{}'.format(result_separation_scans, filename)
 
-        for i in range(input_pdf.numPages):
-            output = PdfFileWriter()
-            output.addPage(input_pdf.getPage(i))
-            with open("{}/{}/{}.pdf".format(path, question_file.split('.')[0], i), "wb") as output_stream:
-                output.write(output_stream)
-                cool_print('Wrote in {}'.format("{}/{}/{}.pdf".format(path, question_file.split('.')[0], i)), style = 'result')
-                file_path = "{}/{}/{}.pdf".format(path, question_file.split('.')[0], i)
-                # convert_pdf_to_png(file_path)
-                cool_print('Converted in {}'.format("{}/{}/{}.pdf".format(path, question_file.split('.')[0], i)), style = 'info')
+        # Start separation
+        with open(file_path, 'rb') as pdf_file:
+            input_pdf = PdfFileReader(pdf_file)
+            for page_n in range(input_pdf.numPages):
+                output_path = '{}/{}.pdf'.format(result_question_path, page_n)
+                output_pdf = PdfFileWriter()
+                output_pdf.addPage(input_pdf.getPage(page_n))
+                write_pdf(output_pdf, output_path)
+                convert_pdf_to_png(output_path)
 
-def convert_pdf_to_png(file):
-    with wImage(filename=file) as img:
-        print(img)
-        # with wImage(width=img.width, height=img.height, background=cColor("white")) as bg:
-            #bg.composite(img,0,0)
-            #bg.save(filename="{}.png".format(file))
+def write_pdf(output_pdf, output_path):
+    with open(output_path, "wb") as output_stream:
+        output_pdf.write(output_stream)
+        cool_print('Wrote in {}'.format(output_path), style = 'result')
+
+def convert_pdf_to_png(file_path):
+    full_path = "{}".format(file_path)
+    output_path = "{}.png".format(file_path.split('.')[0])
+    with Image(filename=full_path, resolution=300) as img:
+        img.strip()
+        img.crop(int(img.width * 0.6), 0, img.width, int(img.height * 0.2))
+        img.save(filename=output_path)
+    cool_print('Converted in {}\n'.format("{}".format(output_path)), style = 'result')
 
 if __name__ == '__main__':
     path1 = 'original_scans'
     path2 = 'scans'
-    # separate_pdf_pages(path1, path2, 'i1')
-
+    separate_pdf_pages(path1, path2, 'i2')
     # imageDir = r'____' # your imagedirectory path
     # SaveToDir = r'____' # diretory in which you want to save the pdfs
     # makePdf(imageDir, SaveToDir)
-    m = os.path.abspath('classifier/0.pdf')
-    print(m)
-    # with Image(filename=m) as img:
-    #    img.save(filename="temp.jpg")
-    all_pages = Image(blob='classifier/0.pdf')        # PDF will have several pages.
-    """ single_image = all_pages.sequence[0]    # Just work on first page
-    with Image(single_image) as i:
-        i.format = 'png'
-        i.background_color = Color('white') # Set white background.
-        i.alpha_channel = 'remove' """
+    # m = os.path.abspath('scans/i1/i1-p1')
+    # name = '0'
+    # convert_pdf_to_png(m,name)
+    # with Image(filename=m, resolution=300) as img:
+    #    img.save(filename="temp.png")

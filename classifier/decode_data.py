@@ -38,7 +38,11 @@ def find_and_decode_qr_from_image(path):
 
         draw.polygon(qr.polygon, outline='#e945ff')
         qr_data = qr.data.decode('utf-8')
+        print('here')
     # This part is meant for testing
     if (qr_data.count('_') > 2):
         save_data(image, qr_data)
     return qr_data
+
+if __name__ == '__main__':
+    print(find_and_decode_qr_from_image('scans/i2/Back/0.png'))
