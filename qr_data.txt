@@ -1,8 +1,8 @@
 {
-    "course": "",
-    "section": "",
-    "year": "",
-    "semester: "",
-    "evaluation": "",
-    "number": "",
+    "course": "IIC2233",
+    "section": "1",
+    "year": "2018",
+    "semester": "2",
+    "evaluation": "i1",
+    "number": "50"
 }
