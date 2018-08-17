@@ -1,0 +1,8 @@
+{
+    "course": "",
+    "section": "",
+    "year": "",
+    "semester: "",
+    "evaluation": "",
+    "number": "",
+}
