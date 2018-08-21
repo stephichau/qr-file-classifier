@@ -211,8 +211,9 @@ def main(path, evaluation_name, *args, **kwargs):
             if len(data) > 1:
                 student_name = data[0]
                 student_qr_array = data[1:]
-                for qr_number in student_qr_array:
-                    students_qr[qr_number] = student_name
+                students_qr[student_name] = student_qr_array
+                # for qr_number in student_qr_array:
+                #    students_qr[qr_number] = student_name
         except KeyError:
             cool_print_decoration('Done with API.', style = 'result')
             # print('I\'m out of range')

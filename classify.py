@@ -25,7 +25,7 @@ def path_exists(path):
 
 def main():
     results = parse_arguments()
-    """ if not results.sheets_directory or not results.scans_directory or not results.results_directory or not results.evaluation_name:
+    if not results.sheets_directory or not results.scans_directory or not results.results_directory or not results.evaluation_name:
         error_message = "Invalid arguments. Missing either --sheets, --scans or --results or --evaluation_name."
         cool_print_decoration(error_message, 'alert')
     elif not (path_exists(results.sheets_directory) and path_exists(results.scans_directory) and path_exists(results.results_directory)):
@@ -33,14 +33,16 @@ def main():
         cool_print_decoration(error_message, 'alert')
 
     else:
+
+        # Read student data from sheets
         SHEETS_PATH = results.sheets_directory
         EVALUATION_NAME = results.evaluation_name
-        # Read students data
-        # get_student_data(SHEETS_PATH, EVALUATION_NAME)
-    """
-    SHEETS_PATH = results.sheets_directory
-    EVALUATION_NAME = results.evaluation_name
-    get_student_data(SHEETS_PATH, EVALUATION_NAME)
+        get_student_data(SHEETS_PATH, EVALUATION_NAME)
+
+        # Separate and generate .txt for .pdf
+        SCANS_PATH = results.scans_directory
+        RESULTS_PATH = results.results_directory
+        classify_tests(SCANS_PATH, RESULTS_PATH, SHEETS_PATH, EVALUATION_NAME)
 
 if __name__ == "__main__":
     main()

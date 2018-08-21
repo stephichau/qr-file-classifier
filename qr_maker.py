@@ -4,11 +4,13 @@ import sys
 from log import cool_print_decoration
 import argparse
 import json
+from generateQr.convert_files import convert_pdf_to_png
+from multiprocessing.pool import Pool
+# from threading import Thread
 
-"""
-To Do Version 1:
-Get data from command line
-"""
+# Version 0
+QR_DIRECTORY_PATH = '{}/QR'.format(os.path.abspath(os.getcwd()));
+PDF_FILE_PATH = '{}'.format(os.path.abspath('Plantilla.pdf'))
 
 def get_data_from_file(file_path):
     with open(file_path, 'r') as file:
@@ -33,10 +35,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-# Version 0
-QR_DIRECTORY_PATH = '{}/QR'.format(os.path.abspath('.'));
-
-def create_qrs(course, section, year, semester, evaluation_name, number, *args):
+def create_qrs(course, section, year, semester, evaluation_name, lower_bound = 0 , number = 0, *args, **kwargs):
     """
     Creates n *.png qr in format: course-section-year-semester-number and saves them in directory QR_DIRECTORY_PATH/evaluation_name/
     :param course: str that represents a UC course
@@ -47,12 +46,15 @@ def create_qrs(course, section, year, semester, evaluation_name, number, *args):
     :param number: int that represents how many qr codes are needed
     :return None:
     """
+    paths_array = []
+    pool = Pool(processes = 2)
+    # pool = Pool(processes = number + 1 - lower_bound)
     qr_string = "{}_"* 5 + "{}"
     # Creates directory if does not exist
     if not os.path.isdir("{}/{}".format(QR_DIRECTORY_PATH, evaluation_name)):
         os.mkdir("{}/{}".format(QR_DIRECTORY_PATH, evaluation_name))
 
-    for num in range(1, number + 1):
+    for num in range(lower_bound, number + 1):
         qr_data = qr_string.format(course, section, year, semester, evaluation_name, num)
 
         # Creates QR object
@@ -64,7 +66,15 @@ def create_qrs(course, section, year, semester, evaluation_name, number, *args):
         img = qr.make_image(fill_color="black", back_color="white")
         path = "{}/{}/{}.png".format(QR_DIRECTORY_PATH, evaluation_name, qr_data)
         img.save(path)
+        paths_array.append([path, PDF_FILE_PATH, path.split('.')[0] + '.pdf'])
+        # print(path.split('.')[0] + '.pdf')
+ 
+        # convert_pdf_to_png(path, PDF_FILE_PATH, path.split('.')[0] + '.pdf')
 
+    # print(list(zip(*paths_array)))
+    pool.starmap(convert_pdf_to_png, paths_array)
+    pool.close()
+    # pool.join()
 def main():
     arguments = parse_arguments()
     if arguments.file_data and not (arguments.course_name and arguments.section_number and arguments.year_number and
@@ -77,7 +87,7 @@ def main():
             error_message = "Invalid QR DIRECTORY PATH: {}".format(QR_DIRECTORY_PATH)
             cool_print_decoration(error_message, style = 'alert')
         else:
-            data = [ data['course'], data['section'], data['year'], data['semester'], data['evaluation'], int(data['number']) ]
+            data = [ data['course'], data['section'], data['year'], data['semester'], data['evaluation'], int(data['lower_bound']), int(data['number']) ]
             create_qrs(*data)
     elif not (arguments.course_name and arguments.section_number and arguments.year_number and
         arguments.semester_number and arguments.evaluation_name and arguments.number_qr and arguments.file_data):
