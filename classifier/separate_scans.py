@@ -9,30 +9,33 @@ import json
 QR_VALUE_FILE_PATHS_DICT = {}
 
 def separate_pdf_pages(original_scans_path, result_separation_scans, evaluation_name, *args):
-
+    """
+    Separates multiple paged .pdf into multiple .pdf files
+    """
     # Get abs path of directories
     original_scans_path = '{}/{}'.format(os.path.abspath(original_scans_path), evaluation_name)
-    if not os.path.exists('{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name)):
-        cool_print_decoration('Creating directory in path {}'.format('{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name)), style = 'info')
-        os.mkdir('{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name))
     result_separation_scans = '{}/{}'.format(os.path.abspath(result_separation_scans), evaluation_name)
+    if not os.path.exists(result_separation_scans):
+        cool_print_decoration('Creating directory in path {}'.format(result_separation_scans), style = 'info')
+        os.mkdir('{}/{}'.format(result_separation_scans))
     
     list_dir = [f for f in os.listdir(original_scans_path) if not f.startswith('.DS_S')]
+
     # Scans are front and back (even number)
     for question_file in list_dir:
 
         # Get abs path of files and question_directories
         file_path = '{}/{}'.format(original_scans_path, question_file)
-        filename = question_file.split('.')[0]
-        if not os.path.exists('{}/{}'.format(result_separation_scans, filename)):
-            os.mkdir('{}/{}'.format(result_separation_scans, filename))
-        result_question_path = '{}/{}'.format(result_separation_scans, filename)
-
+        question_directory = question_file.split('.')[0]
+        result_question_path = '{}/{}'.format(result_separation_scans, question_directory)
+        if not os.path.exists(result_question_path):
+            os.mkdir(result_question_path)
+        
         # Start separation
         with open(file_path, 'rb') as pdf_file:
             input_pdf = PdfFileReader(pdf_file)
             for page_n in range(input_pdf.numPages):
-                output_path = '{}/{}.pdf'.format(result_question_path, page_n)
+                output_path = '{}/{}_{}.pdf'.format(result_question_path, question_directory, page_n)
                 if not os.path.exists(output_path):
                     output_pdf = PdfFileWriter()
                     output_pdf.addPage(input_pdf.getPage(page_n))

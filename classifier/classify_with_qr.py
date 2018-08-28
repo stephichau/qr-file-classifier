@@ -3,7 +3,7 @@ import os
 import shutil
 from .cool_prints import cool_print_decoration
 
-def classify_tests_with_qr(sheet_txt_file_path, qr_txt_file_path, results_path):
+def classify_tests_with_qr(sheet_txt_file_path, qr_txt_file_path, results_path, evaluation_name):
     sheet_data = None
     with open(sheet_txt_file_path, 'r') as sheet_txt:
         sheet_data = json.load(sheet_txt)
@@ -19,7 +19,11 @@ def classify_tests_with_qr(sheet_txt_file_path, qr_txt_file_path, results_path):
         for student_qr_number in sheet_data[student_name]:
             files_path_array = qr_data[student_qr_number]
             for file_path in files_path_array:
-                cool_print_decoration('Moving file from {} to {}', style='info')
+                file_path_split = file_path.split('/')
+                filename = '{}_{}'.format(evaluation_name, file_path_split[-1])
+                # file_path_split[-1] = filename
+                file_path = '/'.join(file_path_split)
+                cool_print_decoration(f'Moving file from {student_directory} to {file_path}', style='info')
                 try:
                     shutil.move(file_path, student_directory)
                 except Exception as e:

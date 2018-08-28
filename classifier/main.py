@@ -11,7 +11,7 @@ def classify_tests(path_to_original_scans, path_to_results_scan, path_to_sheets_
     path_to_sheets_txt = os.path.abspath(path_to_sheets_txt)
     QR_PATH = '{}/{}/{}_qr.txt'.format(path_to_sheets_txt, evaluation_name, evaluation_name)
     path_to_sheets_txt = f'{path_to_sheets_txt}/{evaluation_name}/{STUDENTS_FILE_TXT_NAME}'
-    classify_tests_with_qr(path_to_sheets_txt, QR_PATH, path_to_results_scan)
+    classify_tests_with_qr(path_to_sheets_txt, QR_PATH, path_to_results_scan, evaluation_name)
 
 if __name__ == '__main__':
     path1 = 'original_scans'
