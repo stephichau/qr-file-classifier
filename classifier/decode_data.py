@@ -1,8 +1,12 @@
-from PIL import Image, ImageDraw, ImageFont
-from pyzbar.pyzbar import decode
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from pyzbar.pyzbar import decode, ZBarSymbol
+from wand.image import Image as WImage
+import cv2
 import os
+import numpy as np
+from .cool_prints import cool_print_decoration
+
 QR_RESULTS_DIRECTORY = './Results-{}-{}'
-from wand.image import Image as wImage
 
 """
 Based on code found in:
@@ -17,6 +21,7 @@ def save_data(image, qr_data):
         os.mkdir(output_directory)
     output_path = "{}/{}.png".format(output_directory, qr_data.split('_')[-1])
     if not os.path.exists(output_path):
+        print("Saving in {}".format(output_path))
         image.save(output_path)
 
 def find_and_decode_qr_from_image(path = None, image = None, *args, **kwargs):
@@ -24,28 +29,23 @@ def find_and_decode_qr_from_image(path = None, image = None, *args, **kwargs):
     :param path: Represents absolute path of image with qr
     :return qr_data: Represents data extracted from QR
     """
-    if not image:
-        image = Image.open(path).convert('RGB')
+    kernel = np.ones((2,2),np.uint8)
+    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    image = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    # image = cv2.erode(img, kernel, iterations = 1)
+    # image = cv2.dilate(img, kernel, iterations=2)
+    # if not image:
+    #      image = Image.open(path).convert('RGB')
     # draw = ImageDraw.Draw(image)
     qr_data = ''
-    for qr in decode(image):
-        # rect = qr.rect
-        # draw.rectangle(
-        #    (
-        #        (rect.left, rect.top),
-        #        (rect.left + rect.width, rect.top + rect.height)
-        #    ),
-        #    outline='#ff0000'
-        #)
-
-        # draw.polygon(qr.polygon, outline='#e945ff')
+    for qr in decode(image, symbols=[ZBarSymbol.QRCODE]):
+        # print(qr)
         qr_data = qr.data.decode('utf-8')
-    # This part is meant for testing
-    """if (qr_data.count('_') > 2):
-        save_data(image, qr_data)"""
+        cool_print_decoration('Decoding:\n{}'.format(qr_data), style='info')
     return qr_data
 
 if __name__ == '__main__':
-    # print(find_and_decode_qr_from_image('scans/i2/Back/0.png'))
-    with wImage(filename='scans/i1/i1-p1/0.pdf') as img:
-        print(find_and_decode_qr_from_image(image=img))
+    pass
+    # path = 'results/MT/midterm-p4/dalal.png'
+    # print(path)
+    # print(find_and_decode_qr_from_image(path))
