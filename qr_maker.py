@@ -6,10 +6,12 @@ import argparse
 from json import load
 from generateQr.convert_files import add_qr_to_pdf
 from wand.image import Image
+from PyPDF2 import PdfFileMerger, PdfFileReader
 
 # Version 0
 QR_DIRECTORY_PATH = '{}/QR'.format(os.path.abspath(os.getcwd()));
 PDF_FILE_PATH = '{}'.format(os.path.abspath('Plantilla.pdf'))
+PAGES_PER_STUDENT = 1
 
 def get_data_from_file(file_path):
     with open(file_path, 'r') as file:
@@ -48,26 +50,48 @@ def create_qrs(course, section, year, semester, evaluation_name, lower_bound = 0
     paths_array = []
 
     qr_string = "{}_"* 2 + "{}"
+    qr_path = "{}/{}/{}".format(QR_DIRECTORY_PATH, evaluation_name, course)
     # Creates directory if does not exist
-    if not os.path.isdir("{}/{}".format(QR_DIRECTORY_PATH, evaluation_name)):
-        os.mkdir("{}/{}".format(QR_DIRECTORY_PATH, evaluation_name))
+    if not os.path.isdir(qr_path):
+        os.makedirs(qr_path)
 
-    image = Image(filename=PDF_FILE_PATH, resolution=300)
+    image = Image(filename=PDF_FILE_PATH, resolution=400)
     for num in range(lower_bound, number + 1):
         qr_data = qr_string.format(course, section, num)
 
         # Creates QR object
-        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4)
+        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=15, border=1)
         qr.add_data(qr_data)
         qr.make(fit=True)
 
         # Creates image from QR object
-        img = qr.make_image(fill_color="black", back_color="white")
-        path = "{}/{}/{}.png".format(QR_DIRECTORY_PATH, evaluation_name, qr_data)
+        img = qr.make_image(fill_color="black", back_color="transparent")
+        path = "{}/{}/{}/{}.png".format(QR_DIRECTORY_PATH, evaluation_name, course ,qr_data)
         img.save(path)
-        paths_array.append([path, PDF_FILE_PATH, path.split('.')[0] + '.pdf'])
+        paths_array.append([path, PDF_FILE_PATH, path.split('.')[0] + '.pdf', num])
         
     list(map(lambda x: add_qr_to_pdf(*x, image), paths_array))
+    compress_qrs(qr_path, evaluation_name, course)
+
+def compress_qrs(qr_path = '', evaluation='', course = ''):
+    files = [f for f in os.listdir(qr_path) if '.DS_' not in f]
+    for _tuple in enumerate(sorted(files, key=lambda x: int(x.split('_')[-1][:-4]))) :
+        index, file = _tuple
+        file_path = os.path.abspath('{0}/{1}/{2}/{3}'.format('QR', evaluation, course ,file))
+        print(file_path)
+        output_pdf = PdfFileMerger()
+        with open(file_path, 'rb') as pdf_file:
+            input_pdf = PdfFileReader(pdf_file)
+            for page_n in range(PAGES_PER_STUDENT):
+                output_pdf.append(input_pdf)
+            # output_pdf.append(input_pdf)
+            # output_pdf.append(input_pdf)
+            # output_pdf.append(input_pdf)
+            # output_pdf.append(input_pdf)
+        output_path = f"{qr_path}/compilado_{evaluation}_{index + 1}.pdf"
+        with open(output_path, "wb") as output_stream:
+            output_pdf.write(output_stream)
+
 
 def main():
     arguments = parse_arguments()
@@ -94,3 +118,4 @@ def main():
 if __name__ == '__main__':
     # create_qrs('IIC2333','1','2018','2', 'i2', 1)
     main()
+    # compress_qrs('./QR/C1')
