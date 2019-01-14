@@ -177,7 +177,7 @@ def add_data(students_dict, data_array):
 
 def main(path, evaluation_name, *args, **kwargs):
     students_qr = {}
-
+    print(SPREADSHEET_ID)
     cool_print_decoration('Starting connection with API.', style = 'info')
     # initialize conections
     credentials = get_credentials()
