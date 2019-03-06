@@ -13,16 +13,23 @@ class CommandLineParseTest(unittest.TestCase):
     
     def test_with_empty_args(self):
         _args = self.parser.parse_args([])
-        self.assertIsNone()
+        self.assertEqual(p.check_option(_args), 0)
 
     def test_setup_option(self):
-        pass
+        _args = self.parser.parse_args(['-s'])
+        self.assertEqual(p.check_option(_args), 1)
     
     def test_make_option(self):
-        pass
-    
+        _args = self.parser.parse_args(['-f', 'qr_data.txt', '-m'])
+        self.assertEqual(p.check_option(_args), 2)
+
     def test_classify_option(self):
-        pass
+        _args = self.parser.parse_args(['-f', 'qr_data.txt', '-c'])
+        self.assertEqual(p.check_option(_args), 3)
+    
+    def test_all_flags(self):
+        _args = self.parser.parse_args(['-m','-s', '-f', 'qr_data.txt', '-c'])
+        self.assertEqual(p.check_option(_args), 1)
 
     def tearDown(self):
         del self.parser
