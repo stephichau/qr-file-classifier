@@ -1,8 +1,7 @@
 {
     "course": "IIC2233",
-    "section": "1",
-    "year": "2018",
-    "semester": "2",
-    "evaluation": "i1",
-    "number": "50"
+    "evaluation": "evaluation_name",
+    "upper_bound": "5",
+    "lower_bound": "1",
+    "template": "template_name"
 }
